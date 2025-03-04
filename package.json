@@ -1,14 +1,10 @@
 {
   "name": "nova-design-system",
   "version": "1.0.0",
-  "description": "MCP-ready Design System for Cursor",
+  "description": "Nova Design System MCP Server",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": ["design-system", "mcp", "figma", "cursor"],
-  "author": "Your Name",
-  "license": "MIT",
-  "type": "commonjs",
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {},
+  "license": "MIT"
 }

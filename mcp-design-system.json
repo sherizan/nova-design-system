@@ -1,0 +1,67 @@
+{
+  "name": "Nova Design System",
+  "description": "Auto-generated design system for MCP.",
+  "tokens": {
+    "colors": {
+      "primary": {
+        "value": "#0070f3",
+        "description": "Primary brand color"
+      },
+      "secondary": {
+        "value": "#7928CA",
+        "description": "Secondary accent color"
+      },
+      "background": {
+        "value": "#ffffff",
+        "description": "Default background color"
+      }
+    },
+    "typography": {
+      "heading": {
+        "value": {
+          "fontFamily": "Inter",
+          "fontSize": "32px",
+          "fontWeight": 700,
+          "lineHeight": "40px"
+        },
+        "description": "Heading style"
+      },
+      "body": {
+        "value": {
+          "fontFamily": "Inter",
+          "fontSize": "16px",
+          "fontWeight": 400,
+          "lineHeight": "24px"
+        },
+        "description": "Body text style"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "description": "Primary button component",
+      "figma_url": "https://www.figma.com/file/EXAMPLE?node-id=123%3A456",
+      "props": {
+        "variant": ["primary", "secondary"],
+        "size": ["small", "medium", "large"],
+        "disabled": ["true", "false"]
+      },
+      "examples": [
+        "<Button variant='primary' size='large'>Click me</Button>"
+      ]
+    },
+    {
+      "name": "Card",
+      "description": "Container card component",
+      "figma_url": "https://www.figma.com/file/EXAMPLE?node-id=789%3A101",
+      "props": {
+        "elevation": ["none", "small", "large"],
+        "padding": ["small", "medium", "large"]
+      },
+      "examples": [
+        "<Card elevation='small' padding='medium'>Content here</Card>"
+      ]
+    }
+  ]
+}
