@@ -1,13 +1,15 @@
 require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
 
 const FIGMA_API_URL = 'https://api.figma.com/v1';
 const FILE_KEY = process.env.FIGMA_FILE_KEY;
 const TOKEN = process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
 
 const headers = { 'X-Figma-Token': TOKEN };
+
+const rgbaToHex = (r, g, b, a = 1) =>
+  `#${[r, g, b].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}${a < 1 ? Math.round(a * 255).toString(16).padStart(2, '0') : ''}`;
 
 async function fetchFigmaFile() {
   const res = await axios.get(`${FIGMA_API_URL}/files/${FILE_KEY}`, { headers });
@@ -24,29 +26,29 @@ async function fetchStyleNodes(styleIds) {
   return res.data.nodes;
 }
 
-function rgbaToHex(r, g, b, a = 1) {
-  const to255 = v => Math.round(v * 255);
-  return `#${[r, g, b].map(to255).map(v => v.toString(16).padStart(2, '0')).join('')}${a < 1 ? Math.round(a * 255).toString(16).padStart(2, '0') : ''}`;
-}
-
 function extractColor(paint) {
-  if (!paint || paint.type !== 'SOLID') return '';
+  if (!paint || paint.type !== 'SOLID') return '#000000';
   const { r, g, b, a } = paint.color;
   return rgbaToHex(r, g, b, a);
 }
 
-function extractTypography(style) {
+function extractTypography(style = {}) {
   return {
-    fontFamily: style.fontFamily,
-    fontSize: `${style.fontSize}px`,
-    fontWeight: style.fontWeight,
+    fontFamily: style.fontFamily || 'Default',
+    fontSize: `${style.fontSize || 16}px`,
+    fontWeight: style.fontWeight || 400,
     lineHeight: style.lineHeightPx ? `${style.lineHeightPx}px` : 'normal',
     letterSpacing: style.letterSpacing ? `${style.letterSpacing}px` : 'normal'
   };
 }
 
 function extractShadow(effect) {
-  if (!effect) return null;
+  if (!effect) return {
+    color: '#000000',
+    offsetX: '0px',
+    offsetY: '0px',
+    blurRadius: '0px'
+  };
   return {
     color: rgbaToHex(effect.color.r, effect.color.g, effect.color.b, effect.color.a),
     offsetX: `${effect.offset.x}px`,
@@ -64,21 +66,33 @@ function mapValuesToNames(values) {
   }, {});
 }
 
-function extractComponents(document) {
-  const components = [];
-
-  function traverse(node) {
-    if (node.type === 'COMPONENT_SET') {
-      components.push({
-        name: node.name,
-        description: node.description || '',
-        figma_url: `https://www.figma.com/file/${FILE_KEY}?node-id=${encodeURIComponent(node.id)}`
-      });
+function extractComponents(node, components = []) {
+  if (node.type === 'COMPONENT_SET') {
+    const props = {};
+    if (node.componentPropertyDefinitions) {
+      for (const [key, value] of Object.entries(node.componentPropertyDefinitions)) {
+        props[key] = {
+          type: value.type || 'UNKNOWN',
+          options: value.variantOptions || []
+        };
+      }
     }
-    if (node.children) node.children.forEach(traverse);
-  }
 
-  traverse(document);
+    const exampleProps = Object.entries(props)
+      .map(([key, val]) => `${key}="${val.options[0] || 'default'}"`)
+      .join(' ');
+
+    components.push({
+      name: node.name || 'Unnamed Component',
+      description: node.description || 'No description provided.',
+      figma_url: `https://www.figma.com/file/${FILE_KEY}?node-id=${encodeURIComponent(node.id)}`,
+      props,
+      examples: [`<${node.name} ${exampleProps} />`]
+    });
+  }
+  if (node.children) {
+    node.children.forEach(child => extractComponents(child, components));
+  }
   return components;
 }
 
@@ -102,37 +116,28 @@ async function main() {
     };
 
     stylesData.forEach(style => {
-      const node = nodesData[style.node_id]?.document;
+      const node = nodesData[style.node_id]?.document || {};
 
       if (style.style_type === 'FILL') {
         const paint = node.fills?.[0];
-        const colorValue = extractColor(paint);
-        if (colorValue) {
-          tokens.colors[style.name] = {
-            value: colorValue,
-            description: style.description || '',
-            figma_id: style.node_id
-          };
-        }
+        tokens.colors[style.name] = {
+          value: extractColor(paint),
+          description: style.description || 'No description.',
+          figma_id: style.node_id
+        };
       } else if (style.style_type === 'TEXT') {
-        const typography = extractTypography(node.style);
-        if (typography.fontFamily) {
-          tokens.typography[style.name] = {
-            value: typography,
-            description: style.description || '',
-            figma_id: style.node_id
-          };
-        }
+        tokens.typography[style.name] = {
+          value: extractTypography(node.style),
+          description: style.description || 'No description.',
+          figma_id: style.node_id
+        };
       } else if (style.style_type === 'EFFECT') {
         const effect = node.effects?.find(e => e.type === 'DROP_SHADOW');
-        const shadowValue = extractShadow(effect);
-        if (shadowValue) {
-          tokens.shadows[style.name] = {
-            value: shadowValue,
-            description: style.description || '',
-            figma_id: style.node_id
-          };
-        }
+        tokens.shadows[style.name] = {
+          value: extractShadow(effect),
+          description: style.description || 'No description.',
+          figma_id: style.node_id
+        };
       }
     });
 
@@ -143,22 +148,17 @@ async function main() {
     function traverse(node) {
       if (node.cornerRadius !== undefined) borderRadiusSet.add(node.cornerRadius);
       if (node.strokeWeight !== undefined) strokeWidthSet.add(node.strokeWeight);
-      if (
-        node.paddingLeft !== undefined ||
-        node.paddingRight !== undefined ||
-        node.paddingTop !== undefined ||
-        node.paddingBottom !== undefined
-      ) {
-        spacingSet.add(node.paddingLeft, node.paddingRight, node.paddingTop, node.paddingBottom);
-      }
+      ['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom'].forEach(padding => {
+        if (node[padding] !== undefined) spacingSet.add(node[padding]);
+      });
       if (node.children) node.children.forEach(traverse);
     }
 
     traverse(fileData.document);
 
-    tokens.borderRadius = mapValuesToNames(Array.from(borderRadiusSet));
-    tokens.spacing = mapValuesToNames(Array.from(spacingSet));
-    tokens.strokeWidth = mapValuesToNames(Array.from(strokeWidthSet));
+    tokens.borderRadius = mapValuesToNames([...borderRadiusSet]);
+    tokens.spacing = mapValuesToNames([...spacingSet]);
+    tokens.strokeWidth = mapValuesToNames([...strokeWidthSet]);
 
     const components = extractComponents(fileData.document);
 
@@ -172,12 +172,7 @@ async function main() {
     fs.writeFileSync('mcp-design-system.json', JSON.stringify(designSystem, null, 2));
     console.log(
       `✅ MCP JSON created with ${components.length} components and ${
-        Object.keys(tokens.colors).length +
-        Object.keys(tokens.typography).length +
-        Object.keys(tokens.shadows).length +
-        Object.keys(tokens.borderRadius).length +
-        Object.keys(tokens.spacing).length +
-        Object.keys(tokens.strokeWidth).length
+        Object.values(tokens).reduce((sum, group) => sum + Object.keys(group).length, 0)
       } tokens.`
     );
   } catch (err) {
