@@ -1,0 +1,16 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "api/design-system.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/design-system",
+        "dest": "/api/design-system.js"
+      }
+    ]
+  }
+  
