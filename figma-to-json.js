@@ -1,6 +1,7 @@
 require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 const FIGMA_API_URL = 'https://api.figma.com/v1';
 const FILE_KEY = process.env.FIGMA_FILE_KEY;
@@ -45,14 +46,9 @@ function extractTypography(style) {
 }
 
 function extractShadow(effect) {
-  if (!effect) return {};
+  if (!effect) return null;
   return {
-    color: rgbaToHex(
-      effect.color.r,
-      effect.color.g,
-      effect.color.b,
-      effect.color.a
-    ),
+    color: rgbaToHex(effect.color.r, effect.color.g, effect.color.b, effect.color.a),
     offsetX: `${effect.offset.x}px`,
     offsetY: `${effect.offset.y}px`,
     blurRadius: `${effect.radius}px`
@@ -73,27 +69,13 @@ function extractComponents(document) {
 
   function traverse(node) {
     if (node.type === 'COMPONENT_SET') {
-      const props = {};
-      if (node.componentPropertyDefinitions) {
-        Object.entries(node.componentPropertyDefinitions).forEach(([key, value]) => {
-          props[key] = {
-            type: value.type,
-            options: value.variantOptions
-          };
-        });
-      }
-
       components.push({
         name: node.name,
         description: node.description || '',
-        props,
-        examples: [`<${node.name} ${Object.keys(props).map(prop => `${prop}=""`).join(' ')} />`],
         figma_url: `https://www.figma.com/file/${FILE_KEY}?node-id=${encodeURIComponent(node.id)}`
       });
     }
-    if (node.children) {
-      node.children.forEach(traverse);
-    }
+    if (node.children) node.children.forEach(traverse);
   }
 
   traverse(document);
@@ -124,24 +106,33 @@ async function main() {
 
       if (style.style_type === 'FILL') {
         const paint = node.fills?.[0];
-        tokens.colors[style.name] = {
-          value: extractColor(paint),
-          description: style.description || '',
-          figma_id: style.node_id
-        };
+        const colorValue = extractColor(paint);
+        if (colorValue) {
+          tokens.colors[style.name] = {
+            value: colorValue,
+            description: style.description || '',
+            figma_id: style.node_id
+          };
+        }
       } else if (style.style_type === 'TEXT') {
-        tokens.typography[style.name] = {
-          value: extractTypography(node.style),
-          description: style.description || '',
-          figma_id: style.node_id
-        };
+        const typography = extractTypography(node.style);
+        if (typography.fontFamily) {
+          tokens.typography[style.name] = {
+            value: typography,
+            description: style.description || '',
+            figma_id: style.node_id
+          };
+        }
       } else if (style.style_type === 'EFFECT') {
         const effect = node.effects?.find(e => e.type === 'DROP_SHADOW');
-        tokens.shadows[style.name] = {
-          value: extractShadow(effect),
-          description: style.description || '',
-          figma_id: style.node_id
-        };
+        const shadowValue = extractShadow(effect);
+        if (shadowValue) {
+          tokens.shadows[style.name] = {
+            value: shadowValue,
+            description: style.description || '',
+            figma_id: style.node_id
+          };
+        }
       }
     });
 
@@ -158,10 +149,7 @@ async function main() {
         node.paddingTop !== undefined ||
         node.paddingBottom !== undefined
       ) {
-        spacingSet.add(node.paddingLeft);
-        spacingSet.add(node.paddingRight);
-        spacingSet.add(node.paddingTop);
-        spacingSet.add(node.paddingBottom);
+        spacingSet.add(node.paddingLeft, node.paddingRight, node.paddingTop, node.paddingBottom);
       }
       if (node.children) node.children.forEach(traverse);
     }
