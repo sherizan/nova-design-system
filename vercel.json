@@ -1,8 +1,15 @@
 {
   "version": 2,
-  "functions": {
-    "api/design-system.js": {
-      "runtime": "nodejs18.x"
+  "builds": [
+    {
+      "src": "api/design-system.js",
+      "use": "@vercel/node"
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/api/design-system",
+      "dest": "/api/design-system.js"
+    }
+  ]
 }
