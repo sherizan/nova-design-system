@@ -1,6 +1,6 @@
 {
-  "name": "Nova Design System",
-  "description": "MCP Generative UI Design System",
+  "name": "My Design System",
+  "description": "Auto-generated from Figma",
   "tokens": {
     "colors": {
       "Gradient AI": {
