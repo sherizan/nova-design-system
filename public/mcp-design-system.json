@@ -1,0 +1,42 @@
+{
+  "name": "Nova Design System",
+  "description": "Design system auto-generated from Figma.",
+  "tokens": {
+    "colors": {
+      "Primary/Blue": {
+        "value": "#1D4ED8",
+        "description": "Primary blue for actions."
+      },
+      "Background/Light": {
+        "value": "#FFFFFF",
+        "description": "Default page background."
+      }
+    },
+    "typography": {
+      "Body/Regular": {
+        "value": {
+          "fontFamily": "Inter",
+          "fontSize": "16px",
+          "fontWeight": 400,
+          "lineHeight": "24px"
+        },
+        "description": "Standard body text."
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "description": "Primary button component.",
+      "figma_url": "https://www.figma.com/file/yourfile?node-id=123%3A456",
+      "props": {
+        "variant": ["primary", "secondary"],
+        "size": ["small", "medium", "large"],
+        "disabled": ["true", "false"]
+      },
+      "examples": [
+        "<Button variant='primary' size='large' />"
+      ]
+    }
+  ]
+}
